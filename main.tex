@@ -1,0 +1,51 @@
+\documentclass[11.5pt]{article}
+\usepackage{charter}
+\usepackage{fullpage}
+\usepackage[colorlinks=false]{hyperref}
+\usepackage{ifthen}
+\usepackage{comment}
+\usepackage{xeCJK}
+\usepackage[title,titletoc]{appendix}
+
+\setCJKmainfont[BoldFont = STSongti-SC-Bold]{STSongti-SC-Regular}
+\setCJKfamilyfont{hei}{SIL-Hei-Med-Jian}		%宋体
+\setCJKfamilyfont{song}{SimSun}		%宋体
+\setCJKfamilyfont{kai}{Kaiti}		%楷体
+\setCJKfamilyfont{fang}{song}	%仿宋
+\setCJKfamilyfont{li}{song}			%隶书
+\setCJKfamilyfont{you}{Yuanti}		%幼圆
+
+\newcommand{\song}{\CJKfamily{song}}	%宋体
+\newcommand{\hei}{\CJKfamily{hei}}	%黑体
+\newcommand{\kai}{\CJKfamily{kai}}	%楷体
+\newcommand{\fs}{\CJKfamily{fang}}	%仿宋
+\newcommand{\li}{\CJKfamily{li}}		%隶书
+\newcommand{\you}{\CJKfamily{you}}	%幼圆
+
+\setCJKsansfont[BoldFont = STHeitiSC-Medium]{STHeitiSC-Light}
+
+\bibliographystyle{unsrt}
+\input{common.tex}
+\addbibresource{reference.bib}
+
+\begin{document}
+
+\title{
+	Blockchain Multisig & Threshold Signature Investigationr \\
+	\large The value-based blockchain operating system and search engine}
+\author{Zhuoer Wang Ping Guo}
+\date{April, 2019\\v1.0}
+
+\input{introduction.tex}
+\newpage
+\input{sig.tex}
+\newpage
+\input{sigblockchain.tex}
+\newpage
+\input{thresholddesign.tex}
+\newpage
+\input{conclusion.tex}
+\printbibliography
+
+%\bibliography{reference}
+\end{document}

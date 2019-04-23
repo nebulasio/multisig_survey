@@ -1,0 +1,83 @@
+\section{Threshold Signature Design}
+\label{sec:thresholddesign}
+
+\subsection{Design Requirement}
+\label{requirement}
+
+There is no silver bullet for the threshold signatures. It all depends on the demand and particular use case. Before make decision which threshold signature scheme to use, we will need to understand the needs. 
+
+We will need to answer a few questions before deciding which is the best solution:
+
+Is the multisig account’s private key ever exist?
+Is it possible to assign different weights to particular private keys? 
+Is only the member of the cosigner can generate valid signatures.
+Is the signature will be denied if the number of cosigners below the predefined settings.
+Is it easy to use the multisig tool?
+Is other people know who sign the transaction?
+Is the overhead of remove/add cosigner is an issue?
+Is anti-corruption among cosigner is safe? In which range?
+Are there use cases where one wants to be able to differentiate between multisig and single signature accounts on chain.
+Should multisig lie entirely in the cryptographic realm or should one there be a balance between smart contract / scripts and cryptography?
+
+\subsection{The DAO: Smart Contract}
+\label{thedao}
+
+4.2.1 The DAO
+One of the most incredible concepts to be successfully implemented through blockchain technology is the DAO, a decentralized autonomous organization. Decentralized autonomous organizations are entities that operate through smart contracts. Its financial transactions and rules are encoded on a blockchain, effectively removing the need for a central governing authority — hence the descriptors “decentralized” and “autonomous.”
+
+The Decentralized Autonomous Organization (known as The DAO) was meant to operate like a venture capital fund for the crypto and decentralized space. The lack of a centralized authority reduced costs and in theory provides more control and access to the investors.
+
+At the beginning of May 2016, a few members of the Ethereum community announced the inception of The DAO, which was also known as Genesis DAO. It was built as a smart contract on the Ethereum blockchain. The coding framework was developed open source by the Slock.It team but it was deployed under “The DAO” name by members of the Ethereum community. The DAO had a creation period during which anyone was allowed to send Ether to a unique wallet address in exchange for DAO tokens on a 1–100 scale. The creation period was an unexpected success as it managed to gather 12.7M Ether (worth around \$150M at the time), making it the biggest crowd-fund ever. At some point, when Ether was trading at \$20, the total Ether from The DAO was worth over \$250 million.
+
+4.2.2 The DAO attack detail
+Here is the detailed explained how the hacker get the money from the smart contract: The attacker was analyzing DAO.sol, and noticed that the 'splitDAO' function was vulnerable to the recursive send pattern we've described above: this function updates user balances and totals at the end, so if we can get any of the function calls before this happens to call splitDAO again, we get the infinite recursion that can be used to move as many funds as we want (code comments are marked with XXXXX, you may have to scroll to see em):
+
+
+
+
+The basic idea is this: propose a split. Execute the split. When the DAO goes to withdraw your reward, call the function to execute a split before that withdrawal finishes. The function will start running without updating your balance, and the line we marked above as "the attacker wants to run more than once" will run more than once. What does that do? Well, the source code is inTokenCreation.sol, and it transfers tokens from the parent DAO to the child DAO. Basically the attacker is using this to transfer more tokens than they should be able to into their child DAO.
+How does the DAO decide how many tokens to move? Using the balances array of course:
+
+Because p.splitData[0] is going to be the same every time the attacker calls this function (it's a property of the proposal p, not the general state of the DAO), and because the attacker can call this function from withdrawRewardFor before the balances array is updated, the attacker can get this code to run arbitrarily many times using the described attack, with fundsToBeMoved coming out to the same value each time.
+The first thing the attacker needed to do to pave the way for his successful exploit was to have the withdraw function for the DAO, which was vulnerable to the critical recursive send exploit, actually run. Let's look at what's required to make that happen in code (from DAO.sol):
+
+
+If the hacker could get the first if statement to evaluate to false, the statement marked vulnerable would run. When that statements runs, code that looks like this would be called:
+
+
+
+Notice how the marked line is exactly the vulnerable code mentioned in the description of the exploit we linked!
+That line would then send a message from the DAO's contract to "_recipient" (the attacker). "_recipient" would of course contain a default function, that would call splitDAO again with the same parameters as the initial call from the attacker. Remember that because this is all happening from inside withdrawFor from inside splitDAO, the code updating the balances in splitDAO hasn't run. So the split will send more tokens to the child DAO, and then ask for the reward to be withdrawn again. Which will try to send tokens to "_recipient" again, which would again call split DAO before updating the balances array.
+And so it goes:
+Propose a split and wait until the voting period expires. (DAO.sol, createProposal)
+Execute the split. (DAO.sol, splitDAO)
+Let the DAO send your new DAO its share of tokens. (splitDAO -> TokenCreation.sol, createTokenProxy)
+Make sure the DAO tries to send you a reward before it updates your balance but after doing (3). (splitDAO -> withdrawRewardFor -> ManagedAccount.sol, payOut)
+While the DAO is doing (4), have it run splitDAO again with the same parameters as in (2) (payOut -> _recipient.call.value -> _recipient())
+The DAO will now send you more child tokens, and go to withdraw your reward before updating your balance. (DAO.sol, splitDAO)
+Back to (5)!
+Let the DAO update your balance. Because (7) goes back to (5), it never actually will :-).
+(Side note: Ethereum's gas mechanics don't save us here. call.value passes on all the gas a transaction is working with by default, unlike the send function. so the code will run as long as the attacker will pay for it, which considering it's a cheap exploit means indefinitely)
+Armed with this, we can provide a step by step re-trace of how The DAO got emptied out.
+4.2.3 Important takeaways:
+I think the susceptibility of 1.1 to this attack is really interesting: even though withdrawReward for was not vulnerable by itself, and even though splitDAO was not vulnerable without withdrawRewardFor, the combination proves deadly. This is probably why this exploit was missed in review so many times by so many different people: reviewers tend to review functions one at a time, and assume that calls to secure subroutines will operate securely and as intended.
+In the case of Ethereum, even secure functions that involve sending funds could render your original function as vulnerable to reentrancy. Whether they're functions from the default Solidity libraries or functions that you wrote yourself with security in mind. Special care is required in reviews of Ethereum code to make sure that any functions moving value occur after any state updates whatsoever, otherwise these state values will be necessarily vulnerable to reentrancy.
+4.3 The Better DAO -- Nebulas
+That subject of the DAO is being beaten to death on every form of social media imaginable. What is next? A totally automatic tools which manage so much assets, the system is so fragile even single line of bug can destroy everything. The better DAO should be a semi-automatic way, leverage the smart contract platform, still need people’s involvement to prevent issue being happen as it is not able to stop sending money from smart contract. The idea of the DAO inspired us, we are learning from the issue, and seeking a way to make it doable in real life.
+4.4 Implementation
+We have implemented our multisign solution based on smart contract framework, here is the list of feature we current support in our code base:
+Update the configuration settings, for example: the thresholds for each different operation
+Update Sending transaction rules, for example, more than which amount need how many or specific user’s approval
+Add cosigner
+Delete cosigner
+Replace cosigner
+Send transactions
+Voting to approval
+List the rules
+List the operation logs
+List send transaction rules
+List all the cosigner account addresses
+List the log of update of a cosigner
+List the details of each transaction
+
+The github of the code base is: https://github.com/nebulasio/vote

@@ -1,0 +1,23 @@
+\section{Existing solution in blockchain}
+\label{sec:sigblockchain}
+
+\subsection{Smart Contract}
+\label{smartcontract}
+
+Smart contract based multisig accounts offer much flexibility for example, daily allowances, infinite customization. However, smart contact historically have suffered from bugs in both the code, language, virtual machine and compiler. Hundreds of millions have been locked up in perpetuity due to human related errors. The major issue happened in Ethereum in 2016. The hacker exploits the bug in the smart contract in The DAO, and steal more than 120 millions eths from the smart contract [reference]. Typical blockchain using smart contract to manage the funds are: Ethereum, Tezos, EOS, and VeChain.
+
+
+\subsection{Script}
+\label{script}
+
+Unlike smart contract platforms, Bitcoin has a more primitive scripting language. The differences are stark: not Turing complete, not compiled, no virtual machine and no concept of “state”. Whether this makes the cryptocurrency less useful is a debate to be held elsewhere. But more importantly there are specific op_codes for operations such as multisignature. In Bitcoin and Bitcoin related forks, there is a special script known as Pay-to-Script-Hash which is used to create multisignature accounts. There are a lot of blockchains using P2SH as a tool to achieve the purpose of threshold signatures. Such as, BTC, LTC, IOTA, Cardano, Zcash, NEO, DASH, Decred, NEM and etc.
+
+\subsection{Build into client}
+\label{client}
+
+Enabling the client node to be a special client which support multisig as an admin permission feature. For example in Ripple, user can create multisig transaction through his own client, and broadcast to the internet. Beside Ripple, Stellar is also able to achieve this goal through client node.
+
+\subsubsection{Chain code}
+\label{chaincode}
+
+Hyperledger Fabric also provide threshold signatures as a service  for  chaincode applications. Multi-party computation, voting, distributed random number generation are examples of applications that can use threshold signatures in their core. The chaincode is similar to Nebulas’s NBRE IR.

@@ -1,0 +1,68 @@
+\section{Signature Scheme}
+\label{sec:sig}
+
+\subsubsection*{Basic Concept}
+
+Historically, only organizations with very valuable secrets, such as certificate authorities, militaries, and governments, would make use of the technology. However, in October 2012 after a number of large public website password ciphertext compromises, RSA Security announced that it would be releasing software that makes the technology available to the general public. One of the earliest implementations of the notion was done in the 1990s by Certco's design for the original Secure electronic transaction planned deployment. [wikipedia]
+
+Threshold signature schemes enable sharing signing power amongst n parties such that any subset of t + 1 can jointly sign, but any smaller subset cannot. This problem has received much attention in the cryptographic literature, and many such schemes have been designed. Perhaps the first system with complete threshold properties for a trapdoor function (RSA) and a proof of security was given by Santis[reference].
+ 
+There are a few popular used threshold signatures: RSA, BLS and ECDSA schemes. Threshold RSA signatures is proposed by Shoup [reference], the security is based on the random oracle model. Threshold BLS signatures was proposed by Boneth [reference]. The main contribution of their work is a signature scheme with considerably shorter signature than RSA scheme, while maintaining the same level of security.  We will not dive into the details of these two schemes.
+
+
+\subsubsection*{Alternative multisig techniques}
+
+In general, there are two groups of solutions multisig techniques to solve the issue: Non-cryptographic techniques and cryptographic techniques. Non-cryptographic techniques are widely used in most of the blockchain such as P2SH and smart contract to achieve the goal. There are a few cryptographic techniques, such as Threshold ECDSA, Threshold Ed25519, Schnorr Signatures and BLS Signatures. 
+
+2.2.1 Non-cryptographic techniques:
+
+Although smart contract based multi signature accounts offer much flexibility (daily allowances, infinite customization) . However it historically have suffered from bugs in both the code, language, virtual machine and compiler. Hundreds of millions have been locked up in perpetuity due to human related errors. For example the DAO issue in 2016. 
+
+Unlike smart contract platforms, Bitcoin has a more primitive scripting language. The differences are stark: not Turing complete, not compiled, no virtual machine and no concept of “state”. Whether this makes the cryptocurrency less useful is a debate to be held elsewhere. But more importantly there are specific op_codes for operations such as multisignature. In Bitcoin and Bitcoin related forks, there is a special script known as Pay-to-Script-Hash which is used to create multisignature accounts. 
+
+Both Bitcoin’s multisignature addresses and Ethereum’s multisig wallets require on chain submission of all relevant signature for a transaction to be sent. Some of the schemes we will explore today only require one signature to be submitted, saving valuable onchain space and potentially making the address indistinguishable from single private key addresses.
+2.2.2 cryptographic techniques:
+Shamir’s Secret Sharing (SSS)
+
+
+Here a private key is used to derive n shards, where m are required to reconstruct the private key. This scheme is often used for key recovery, if a user loses the private key it is possible to reconstruct the original key using the shards the user has distributed to various friends. However it is not apt for multi signature as:
+The private key must be generated to derive the shards.
+The private key must be reassembled from the shards before a transaction can be signed.
+This means that there is a trusted generation and reassembly step which are points of failure. Also individual shard holders have no say in which transaction is going to be signed, all they provide is the shard. Trusted hardware could mitigate the trusted generation and signing concerns, but this leads to issues such as side channel attacks, availability, etc.
+Nonetheless there are some unique features of SSS that should be noted, it is possible to create as many distinct set of shares without modifying the underlying secret / private key. Thus if Alice originally has 10 secrets and unfriends Bob, a secret holder, Alice can regenerate 9 secrets and give it to the remaining trusted parties (who hopefully destroy their old shares, rendering Bob’s share useless).
+There are some libraries out in the wild for Bitcoin (SplitKey) and Ethereum, however they function as key recovery systems.
+Threshold ECDSA
+
+In threshold ECDSA, we remove the vulnerability of Shamir’s where there is a preimage / existing private key. Here we describe a recent construction pioneered by Steven Goldfeder in his ECDSA MPC paper, which surpasses previous ECDSA work in terms of efficiency for both the key generation and signing.
+
+Using a distributed key generation (DKG) scheme, all key holders participate in an interactive process that generates both a private key for themselves and a single public key. This ensures that no party ever learns the true private key. Before this construction key generation would only be practical using a trusted dealer as the computation time would be too great for parties greater than two.
+
+ECDSA signatures are ok. They do their job and do it well, but nothing more. We can’t combine signatures or keys and every signature has to be verified independently. With multisig transactions, it becomes especially annoying. We have to check all the signatures and the corresponding public keys one by one, waste a lot of space in a block and pay large fees.
+
+We know of two working implementations of threshold ECDSA done by Keep Network and Kzen Networks.
+Threshold Ed25519
+
+An issue with ECDSA is that due to the intricacies of the signing algorithm, threshold signatures are complex. However for other signatures schemes such as EdDSA (Edwards-curve Digital Signature Algorithm), and particularly with curve Edwards25519 whose signature scheme Ed25519 has relatively more efficient and straightforward threshold signatures. Users generate their own keys and then have an aggregation step to create a single public key and transaction signing has a three round interactive protocol.
+
+Kzen Networks has implemented a reference library for Ed25519 threshold signatures; Stellar[reference], Near Protocol and Cosmos use the same curve but do not to implement cryptographic threshold signatures.
+Schnorr Signatures
+
+In Bitcoin, Schnorr signatures are a form of signature aggregation. Instead of using P2SH which grows linearly to the number of keys, signature aggregation allows for constant size signatures. And the verifier does not need to know the individual public keys of the signers, increasing privacy. Blockstream is helping pioneer this technique in Bitcoin.
+There are several ways to implement m-of-n multisignature in Schnorr(section 5.3) with various trade offs, in some schemes users provide their own keys, whereas in others there must be a DKG ceremony. In general there is at least one round of communication for key generation and transaction signing, transaction signing also does not scale well with large a large m or n.
+BLS Signatures
+
+Short for Bohen-Lynn-Shacham signatures, they work very well for large signature sets. Meaning we can have a 2 of 10 or 2 of 1000 multisignature schemes with barely any difference in set up and signing times. For the setup phase the only thing necessary to do is generation of membership keys for each private key, this only requires one round of communication[5]. Because users supply their own private keys it is possible to use techniques such as HD Derivation for easy management of multiple keys. Users sign transactions offline and a single aggregator adds up the signatures and submits it.
+
+This particular construction using membership keys is fairly new, another method is to leverage Shamir’s Secret Sharing (used by Dfinity and Dash) however either a trusted dealer or a DKG is necessary. A downside of BLS lies in the weeds, where finding an optimal pairing is inefficient, meaning signature verification is slow, a magnitude slower than ECDSA.
+
+
+Table here...
+
+2.3 Related Work
+Threshold signature has been invented more that 20 years ago, fits the needs of a blockchain system but has not been exploited so far to a great effect. Even though there is vivid academic research in blockchain technology and Bitcoin, introduced already in 2008[reference], and despite that threshold cryptography had been introduced even earlier, the applications of threshold cryptography in blockchain systems have only very recently started being explored. 
+ 
+Goldfeder et al. [reference] introduce threshold signatures for Bitcoin. They suggest a threshold ECDSA scheme. They argue that if a company wants to perform a Bitcoin transaction, multiple employees must contribute to the signature instead of one. Whereas Bitcoin already supports multisig, they present the advantages in terms of flexibility, confidentiality, anonymity, and scalability that threshold signatures have. 
+ 
+Another notable contribution is the threshold signature scheme suggested by Gernnaro et al [reference] for the enhancement of Bitcoin security. The authors point out that it is insecure to store the cryptographic key for authorizing transactions in a single location. Instead they suggest storing secret key shares in multiple of the userFLS devices and they propose a two-factor authentication scheme based on threshold signatures. The suggested signature scheme is a threshold version of the ECDSA signature scheme based on. 
+ 
+Another effort to leverage distributed signatures to enhance the security and performance of Bitcoin is the work of Kogias et al [reference]. They introduce ByzCoin, a cryptocurrency that replace the proof-of-work used to reach a consensus in Bitcoin with dynamic version of the PBFT protocol to achieve strong consistency. They use collective signing [reference] to improve the scalability of PBFT. The actor in the collective signing scheme is an authority, which produces the signatures, and a group of witnesses that participate in signing. The scheme is built on SChnorr signature [reference]. However, the CoSi protocol is performed in rounds and therefore introduce communication cost. Also CoSi doesn’t specify a threshold of required co-signatures f which is scheme is guaranteed to work correctly. More importantly, the authority that also acts as a leader for the protocol remains single point of failure. The contributions presented above examine how to leverage distributed cryptography for Bitcoin. 
